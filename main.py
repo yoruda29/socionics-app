@@ -193,6 +193,8 @@ if st.button("診断結果を算出", type="primary", use_container_width=True):
     st.caption("🟦 Ego (P1,P2) / 🟨 Super-Ego (P3,P4) / 🟩 Super-ID (P5,P6) / 🟥 Id (P7,P8)")
 
     # 最後にランキングとグラフを表示
+    st.divider()
+    col1, col2 = st.columns(2)
     with col1:
         st.write("### 🥇 適合順位 (Top 3)")
         # スライス [:3] で上位3位に制限
