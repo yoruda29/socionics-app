@@ -2,147 +2,133 @@ import streamlit as st
 import operator
 import pandas as pd
 
-# --- 1. データ定義 ---
-# 各タイプの「価値機能（Valued）」
-socionics_types = {
-    "ILE (ENTp)": ["Ne", "Ti", "Fe", "Si"], "SEI (ISFp)": ["Si", "Fe", "Ti", "Ne"],
-    "ESE (ESFj)": ["Fe", "Si", "Ne", "Ti"], "LII (INTj)": ["Ti", "Ne", "Si", "Fe"],
-    "EIE (ENFj)": ["Fe", "Ni", "Se", "Ti"], "LSI (ISTj)": ["Ti", "Se", "Ni", "Fe"],
-    "SLE (ESTp)": ["Se", "Ti", "Fe", "Ni"], "IEI (INFp)": ["Ni", "Fe", "Ti", "Se"],
-    "SEE (ESFp)": ["Se", "Fi", "Te", "Ni"], "ILI (INTp)": ["Ni", "Te", "Fi", "Se"],
-    "LIE (ENTj)": ["Te", "Ni", "Se", "Fi"], "ESI (ISFj)": ["Fi", "Se", "Ni", "Te"],
-    "LSE (ESTj)": ["Te", "Si", "Ne", "Fi"], "EII (INFj)": ["Fi", "Ne", "Si", "Te"],
-    "IEE (ENFp)": ["Ne", "Fi", "Te", "Si"], "SLI (ISTp)": ["Si", "Te", "Fi", "Ne"],
+# --- 1. データ定義: タイプの構造（各機能のポジション） ---
+# モデルAに基づき、各タイプの機能ポジションを定義
+# P1:主導, P2:創造, P5:暗示, P6:動員 (これらがValued)
+socionics_structure = {
+    "ILE (ENTp)": {"P1": "Ne", "P2": "Ti", "P5": "Si", "P6": "Fe"},
+    "SEI (ISFp)": {"P1": "Si", "P2": "Fe", "P5": "Ne", "P6": "Ti"},
+    "ESE (ESFj)": {"P1": "Fe", "P2": "Si", "P5": "Ti", "P6": "Ne"},
+    "LII (INTj)": {"P1": "Ti", "P2": "Ne", "P5": "Fe", "P6": "Si"},
+    "EIE (ENFj)": {"P1": "Fe", "P2": "Ni", "P5": "Ti", "P6": "Se"},
+    "LSI (ISTj)": {"P1": "Ti", "P2": "Se", "P5": "Fe", "P6": "Ni"},
+    "SLE (ESTp)": {"P1": "Se", "P2": "Ti", "P5": "Ni", "P6": "Fe"},
+    "IEI (INFp)": {"P1": "Ni", "P2": "Fe", "P5": "Se", "P6": "Ti"},
+    "SEE (ESFp)": {"P1": "Se", "P2": "Fi", "P5": "Ni", "P6": "Te"},
+    "ILI (INTp)": {"P1": "Ni", "P2": "Te", "P5": "Se", "P6": "Fi"},
+    "LIE (ENTj)": {"P1": "Te", "P2": "Ni", "P5": "Fi", "P6": "Se"},
+    "ESI (ISFj)": {"P1": "Fi", "P2": "Se", "P5": "Te", "P6": "Ni"},
+    "LSE (ESTj)": {"P1": "Te", "P2": "Si", "P5": "Fi", "P6": "Ne"},
+    "EII (INFj)": {"P1": "Fi", "P2": "Ne", "P5": "Te", "P6": "Si"},
+    "IEE (ENFp)": {"P1": "Ne", "P2": "Fi", "P5": "Si", "P6": "Te"},
+    "SLI (ISTp)": {"P1": "Si", "P2": "Te", "P5": "Ne", "P6": "Fi"},
 }
 
-all_funcs = ["Ti", "Te", "Fi", "Fe", "Si", "Se", "Ni", "Ne"]
+soci_to_mbti = {k: v for k, v in zip(socionics_structure.keys(), 
+    ["ENTP", "ISFJ", "ESFJ", "INTP", "ENFJ", "ISTP", "ESTP", "INFJ", "ESFP", "INTJ", "ENTJ", "ISFP", "ESTJ", "INFP", "ENFP", "ISTJ"])}
 
-soci_to_mbti = {
-    "ILE (ENTp)": "ENTP", "SEI (ISFp)": "ISFJ", "ESE (ESFj)": "ESFJ", "LII (INTj)": "INTP",
-    "EIE (ENFj)": "ENFJ", "LSI (ISTj)": "ISTP", "SLE (ESTp)": "ESTP", "IEI (INFp)": "INFJ",
-    "SEE (ESFp)": "ESFP", "ILI (INTp)": "INTJ", "LIE (ENTj)": "ENTJ", "ESI (ISFj)": "ISFP",
-    "LSE (ESTj)": "ESTJ", "EII (INFj)": "INFP", "IEE (ENFp)": "ENFP", "SLI (ISTp)": "ISTJ"
-}
-
-# 質問リスト (各機能5問、計40問)
+# 質問リスト: 「能力」ではなく「価値（Valued/Unvalued）」を問う内容
 questions = [
-    # Ti
-    {"id": 1, "func": "Ti", "text": "論理的矛盾を見つけると、それを正さずにはいられない。"},
-    {"id": 2, "func": "Ti", "text": "物事の根本的な原理や構造を理解することに快感を覚える。"},
-    {"id": 3, "func": "Ti", "text": "誰に対しても公平な、普遍的なルールを適用すべきだと思う。"},
-    {"id": 4, "func": "Ti", "text": "感情的な訴えよりも、論理的な一貫性がある説明を信頼する。"},
-    {"id": 5, "func": "Ti", "text": "複雑な情報を分類し、整理された体系を作るのが得意だ。"},
-    # Te
-    {"id": 6, "func": "Te", "text": "「どれだけ効率的に成果を出せるか」を常に考えて行動している。"},
-    {"id": 7, "func": "Te", "text": "有用なデータや事実に基づいた、実用的なアドバイスを好む。"},
-    {"id": 8, "func": "Te", "text": "目的達成のためなら、既存のやり方を合理的に作り変える。"},
-    {"id": 9, "func": "Te", "text": "個人の感情よりも、組織や社会の生産性を重視すべきだ。"},
-    {"id": 10, "func": "Te", "text": "専門的な知識を習得し、それを実生活で役立てるのが好きだ。"},
-    # Fi
-    {"id": 11, "func": "Fi", "text": "自分の内なる「好き・嫌い」の感覚を何よりも大切にしている。"},
-    {"id": 12, "func": "Fi", "text": "人との親密な心の交流や、深い信頼関係を重視する。"},
-    {"id": 13, "func": "Fi", "text": "他人の評価よりも、自分の良心に従って生きることを選ぶ。"},
-    {"id": 14, "func": "Fi", "text": "相手の心の痛みに共感し、寄り添うことに大きな意味を感じる。"},
-    {"id": 15, "func": "Fi", "text": "「この人は信頼できる」という直感的な判断を大切にする。"},
-    # Fe
-    {"id": 16, "func": "Fe", "text": "その場の情熱や感動を、みんなで共有して盛り上がるのが好きだ。"},
-    {"id": 17, "func": "Fe", "text": "周囲の人が明るい気持ちになれるよう、振る舞いに気をつかう。"},
-    {"id": 18, "func": "Fe", "text": "集団の団結力を高め、活気ある雰囲気を作ることにやりがいを感じる。"},
-    {"id": 19, "func": "Fe", "text": "感情表現が豊かで、オープンなコミュニケーションを好む。"},
-    {"id": 20, "func": "Fe", "text": "他人の感情を動かし、強い影響を与えることに魅力を感じる。"},
-    # Si
-    {"id": 21, "func": "Si", "text": "健康や快適さ、五感を通じた心地よさを維持することに価値を置く。"},
-    {"id": 22, "func": "Si", "text": "生活の中の小さな変化や、体調の細かな波に敏感である。"},
-    {"id": 23, "func": "Si", "text": "急激な変化よりも、安定してリラックスできる環境を好む。"},
-    {"id": 24, "func": "Si", "text": "美的な調和や、洗練された空間・食事を楽しむ時間が大切だ。"},
-    {"id": 25, "func": "Si", "text": "無理をせず、自分のペースを守って過ごすことが重要だと思う。"},
-    # Se
-    {"id": 26, "func": "Se", "text": "困難に直面したとき、自分の意志と力で状況を支配したいと思う。"},
-    {"id": 27, "func": "Se", "text": "「今、この瞬間」の現実を動かす力強さに魅力を感じる。"},
-    {"id": 28, "func": "Se", "text": "競争や挑戦的な状況において、自分の実力を発揮することに興奮する。"},
-    {"id": 29, "func": "Se", "text": "目標を達成するために、周囲に直接的な影響を及ぼすことを厭わない。"},
-    {"id": 30, "func": "Se", "text": "決断が速く、必要であればリスクを取って行動に移す。"},
-    # Ni
-    {"id": 31, "func": "Ni", "text": "目先の出来事よりも、その背後にある歴史や未来の流れに惹かれる。"},
-    {"id": 32, "func": "Ni", "text": "人生の哲学的な意味や、抽象的なシンボルについて考えるのが好きだ。"},
-    {"id": 33, "func": "Ni", "text": "物事の結末や、将来どのような変化が起きるかを予測するのが得意だ。"},
-    {"id": 34, "func": "Ni", "text": "静かに内省し、自分の精神的な洞察を深める時間を必要とする。"},
-    {"id": 35, "func": "Ni", "text": "「いつ、何をすべきか」という直感的なタイミングの感覚を信じている。"},
-    # Ne
-    {"id": 36, "func": "Ne", "text": "新しいアイデアや、まだ見ぬ可能性を探求することにワクワクする。"},
-    {"id": 37, "func": "Ne", "text": "一つのことに縛られず、多種多様な選択肢を検討するのが好きだ。"},
-    {"id": 38, "func": "Ne", "text": "型破りな発想や、ユニークな才能を持つ人に惹かれる。"},
-    {"id": 39, "func": "Ne", "text": "知的好奇心が旺盛で、未知の分野を知ることに大きな喜びを感じる。"},
-    {"id": 40, "func": "Ne", "text": "現状を打破するような、斬新なビジョンを常に求めている。"},
+    # Ti: 論理的整合性への価値
+    {"id": 1, "func": "Ti", "text": "感情的に納得するよりも、論理的な一貫性が保たれていることに深い安らぎを感じる。"},
+    {"id": 2, "func": "Ti", "text": "物事の仕組みやルールが明確で、矛盾がない状態を何よりも重要視したい。"},
+    {"id": 3, "func": "Ti", "text": "たとえ冷酷だと思われても、正しい論理的基準を貫く生き方に惹かれる。"},
+    # Te: 実用的効率への価値
+    {"id": 4, "func": "Te", "text": "単なる理論よりも、実際に役立つデータや結果を出すための「賢い方法」を常に求めている。"},
+    {"id": 5, "func": "Te", "text": "無駄な努力を嫌い、客観的な事実に基づいてテキパキと状況を改善することに価値を感じる。"},
+    {"id": 6, "func": "Te", "text": "自分がどう思うかより、それが「社会的に見て有効か、実利があるか」を基準に判断したい。"},
+    # Fi: 個人的な絆・誠実さへの価値
+    {"id": 7, "func": "Fi", "text": "表面的な愛想よりも、内面にある真実の思いや、一対一の深い信頼関係を大切にしたい。"},
+    {"id": 8, "func": "Fi", "text": "自分なりの「善悪の基準」をしっかり持ち、自分の心に嘘をつかないことを人生の誇りにしたい。"},
+    {"id": 9, "func": "Fi", "text": "他人の評価がどうあれ、自分が「好き」と感じる感覚や、人への好意を尊重して生きたい。"},
+    # Fe: 感情の共有・熱狂への価値
+    {"id": 10, "func": "Fe", "text": "場の空気が冷めているよりも、感情がオープンに表現され、みんなで熱狂を共有できる状態が好きだ。"},
+    {"id": 11, "func": "Fe", "text": "自分の内面を黙って守るより、周囲の感情をポジティブに揺さぶり、盛り上げたいという欲求がある。"},
+    {"id": 12, "func": "Fe", "text": "人々の情熱が目に見える形で溢れ出している環境にいると、自分も生きてる実感が湧く。"},
+    # Si: 心身の調和・快適さへの価値
+    {"id": 13, "func": "Si", "text": "野心のために無理をするよりも、日々の暮らしの快適さや、心身の健康を整えることを優先したい。"},
+    {"id": 14, "func": "Si", "text": "五感（味、触り心地、空間）が心地よく調和していることに、高い価値を置いている。"},
+    {"id": 15, "func": "Si", "text": "殺伐とした競争よりも、平穏でリラックスできる温かな環境に惹かれる。"},
+    # Se: 意志の力・影響力への価値
+    {"id": 16, "func": "Se", "text": "受動的に待つのではなく、自らの意志で現実を動かし、状況をコントロールすることに魅力を感じる。"},
+    {"id": 17, "func": "Se", "text": "強さや決断力を持って、困難を突破していく人に強く惹かれる（あるいは自分もそうありたい）。"},
+    {"id": 18, "func": "Se", "text": "目に見える勝利や、確固たる影響力を手に入れることは、人生において重要なことだと思う。"},
+    # Ni: 将来のビジョン・隠れた意味への価値
+    {"id": 19, "func": "Ni", "text": "目先の利益よりも、物事が将来どう変化していくかという「時間の流れ」や「予兆」に意識が向く。"},
+    {"id": 20, "func": "Ni", "text": "現実の裏側に隠された深い意味や、人生の運命的なつながりを探求することに価値を感じる。"},
+    {"id": 21, "func": "Ni", "text": "焦って行動するより、全体の流れを見極め、本質的なタイミングを待つことの方が大切だと思う。"},
+    # Ne: 未知の可能性・アイデアへの価値
+    {"id": 22, "func": "Ne", "text": "すでに知られていることよりも、まだ誰も試していない新しいアイデアや可能性に心が躍る。"},
+    {"id": 23, "func": "Ne", "text": "一つの答えに縛られず、常に「もし～だったら？」と多角的な視点を持つ人でありたい。"},
+    {"id": 24, "func": "Ne", "text": "平凡な日常から抜け出し、何かユニークで知的な刺激がある未来を追い求めていたい。"},
 ]
 
 # --- 2. 診断ロジック ---
 def calculate_diagnosis(answers):
-    # スコアを -2 〜 2 に変換
+    # スコアマップ (1-5点を -2 ~ 2に変換)
     score_map = {1: -2, 2: -1, 3: 0, 4: 1, 5: 2}
-    func_scores = {f: 0 for f in all_funcs}
+    func_raw_scores = {f: 0 for f in ["Ti", "Te", "Fi", "Fe", "Si", "Se", "Ni", "Ne"]}
+    
     for q in questions:
-        func_scores[q["func"]] += score_map.get(answers.get(q["id"], 3), 0)
-    
+        func_raw_scores[q["func"]] += score_map.get(answers.get(q["id"], 3), 0)
+
     type_scores = {}
-    for soc_type, valued_funcs in socionics_types.items():
-        # 価値機能(Valued)は加算、非価値機能(Unvalued)は減算
-        unvalued_funcs = [f for f in all_funcs if f not in valued_funcs]
+    for t_name, pos in socionics_structure.items():
+        # ポジションによる重み付け
+        # P1(主導): 4倍, P2(創造): 3倍, P6(動員): 2倍, P5(暗示): 1.5倍
+        score = (func_raw_scores[pos["P1"]] * 4.0 + 
+                 func_raw_scores[pos["P2"]] * 3.0 + 
+                 func_raw_scores[pos["P6"]] * 2.0 + 
+                 func_raw_scores[pos["P5"]] * 1.5)
         
-        score = sum(func_scores[f] for f in valued_funcs)
-        score -= sum(func_scores[f] for f in unvalued_funcs)
+        # 非価値機能への反発（他の4つの機能）
+        unvalued = [f for f in ["Ti", "Te", "Fi", "Fe", "Si", "Se", "Ni", "Ne"] 
+                    if f not in pos.values()]
+        score -= sum(func_raw_scores[f] for f in unvalued) * 2.0
         
-        type_scores[soc_type] = score
-    
+        type_scores[t_name] = round(score, 1)
+
     sorted_types = sorted(type_scores.items(), key=operator.itemgetter(1), reverse=True)
     return {
         "socionics": sorted_types[0][0],
         "mbti_equiv": soci_to_mbti[sorted_types[0][0]],
-        "scores": func_scores,
+        "scores": func_raw_scores,
         "ranking": sorted_types[:5]
     }
 
-# --- 3. Streamlit UI ---
-st.set_page_config(page_title="ソシオニクス診断", page_icon="🧬")
+# --- 3. UI ---
+st.set_page_config(page_title="ソシオニクス価値観診断", layout="centered")
 
-st.title("🧬 ソシオニクス診断 (Ver 2.0)")
+st.title("🧩 ソシオニクス価値観診断 (精密版)")
+st.write("「何ができるか」ではなく、あなたが**「何を大切だと思うか」**を教えてください。")
 
 user_answers = {}
-
-# 質問の表示
 for q in questions:
-    st.markdown(f"**Q{q['id']}. {q['text']}**")
-    # ボタン形式（segmented_control）
-    ans = st.radio(
-        label="選択肢",
+    st.markdown(f"#### {q['text']}")
+    user_answers[q["id"]] = st.radio(
+        label=f"q_{q['id']}",
         options=[1, 2, 3, 4, 5],
-        format_func=lambda x: {1:"全く違う", 2:"違う", 3:"普通", 4:"そう思う", 5:"非常にそう思う"}[x],
-        key=f"q_{q['id']}",
+        format_func=lambda x: {1: "全く違う", 2: "違う", 3: "どちらでもない", 4: "惹かれる", 5: "非常に惹かれる"}[x],
         horizontal=True,
+        key=f"radio_{q['id']}",
         label_visibility="collapsed"
     )
-    user_answers[q["id"]] = ans
-    st.divider()
+    st.write("") # スペース用
 
-if st.button("診断結果を計算する", type="primary", use_container_width=True):
-    result = calculate_diagnosis(user_answers)
+if st.button("診断結果を算出", type="primary", use_container_width=True):
+    res = calculate_diagnosis(user_answers)
+    st.success("分析が完了しました。")
     
-    st.balloons()
-    st.header(f"あなたのタイプは: **{result['socionics']}**")
-    st.subheader(f"（MBTI推定: {result['mbti_equiv']}）")
+    st.header(f"結果: {res['socionics']}")
+    st.subheader(f"（MBTIタイプ: {res['mbti_equiv']}）")
     
-    st.markdown("---")
-    col1, col2 = st.columns([1, 1])
-    
+    col1, col2 = st.columns(2)
     with col1:
-        st.write("### 🏅 上位適合ランキング")
-        for i, (t, s) in enumerate(result['ranking']):
-            # スコアの正規化（見やすさのため）
-            st.write(f"{i+1}. **{t}** (適合度: {s})")
-            
+        st.write("### 🥇 適合ランキング")
+        for i, (name, score) in enumerate(res['ranking']):
+            st.write(f"{i+1}. {name} : {score}点")
     with col2:
-        st.write("### 機能チャート")
-        # グラフ用のデータ整形
-        df = pd.DataFrame([result['scores']]).T.reset_index()
-        df.columns = ["心理機能", "スコア"]
-        st.bar_chart(df.set_index("心理機能"))
+        st.write("### 📊 機能別価値スコア")
+        df = pd.DataFrame([res['scores']]).T.reset_index()
+        df.columns = ["機能", "スコア"]
+        st.bar_chart(df.set_index("機能"))
