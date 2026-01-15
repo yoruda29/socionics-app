@@ -5,24 +5,29 @@ import pandas as pd
 # --- 1. データ定義: タイプの構造（各機能のポジション） ---
 # モデルAに基づき、各タイプの機能ポジションを定義
 # P1:主導, P2:創造, P5:暗示, P6:動員 (これらがValued)
-socionics_structure = {
-    "ILE (ENTp)": {"P1": "Ne", "P2": "Ti", "P5": "Si", "P6": "Fe"},
-    "SEI (ISFp)": {"P1": "Si", "P2": "Fe", "P5": "Ne", "P6": "Ti"},
-    "ESE (ESFj)": {"P1": "Fe", "P2": "Si", "P5": "Ti", "P6": "Ne"},
-    "LII (INTj)": {"P1": "Ti", "P2": "Ne", "P5": "Fe", "P6": "Si"},
-    "EIE (ENFj)": {"P1": "Fe", "P2": "Ni", "P5": "Ti", "P6": "Se"},
-    "LSI (ISTj)": {"P1": "Ti", "P2": "Se", "P5": "Fe", "P6": "Ni"},
-    "SLE (ESTp)": {"P1": "Se", "P2": "Ti", "P5": "Ni", "P6": "Fe"},
-    "IEI (INFp)": {"P1": "Ni", "P2": "Fe", "P5": "Se", "P6": "Ti"},
-    "SEE (ESFp)": {"P1": "Se", "P2": "Fi", "P5": "Ni", "P6": "Te"},
-    "ILI (INTp)": {"P1": "Ni", "P2": "Te", "P5": "Se", "P6": "Fi"},
-    "LIE (ENTj)": {"P1": "Te", "P2": "Ni", "P5": "Fi", "P6": "Se"},
-    "ESI (ISFj)": {"P1": "Fi", "P2": "Se", "P5": "Te", "P6": "Ni"},
-    "LSE (ESTj)": {"P1": "Te", "P2": "Si", "P5": "Fi", "P6": "Ne"},
-    "EII (INFj)": {"P1": "Fi", "P2": "Ne", "P5": "Te", "P6": "Si"},
-    "IEE (ENFp)": {"P1": "Ne", "P2": "Fi", "P5": "Si", "P6": "Te"},
-    "SLI (ISTp)": {"P1": "Si", "P2": "Te", "P5": "Ne", "P6": "Fi"},
+# --- 1. データ定義: モデルA 全ポジション (P1〜P8) ---
+# [P1, P2, P3, P4, P5, P6, P7, P8] の順に格納
+model_a_data = {
+    "ILE (ENTp)": ["Ne", "Ti", "Se", "Fi", "Si", "Fe", "Ni", "Te"],
+    "SEI (ISFp)": ["Si", "Fe", "Te", "Ni", "Ne", "Ti", "Se", "Fi"],
+    "ESE (ESFj)": ["Fe", "Si", "Ne", "Ti", "Ti", "Ne", "Fi", "Se"],
+    "LII (INTj)": ["Ti", "Ne", "Si", "Fe", "Fe", "Si", "Te", "Ni"],
+    "EIE (ENFj)": ["Fe", "Ni", "Se", "Ti", "Ti", "Se", "Fi", "Ni"],
+    "LSI (ISTj)": ["Ti", "Se", "Ni", "Fe", "Fe", "Ni", "Te", "Se"],
+    "SLE (ESTp)": ["Se", "Ti", "Fe", "Ni", "Ni", "Fe", "Si", "Ti"],
+    "IEI (INFp)": ["Ni", "Fe", "Ti", "Se", "Se", "Ti", "Ne", "Fe"],
+    "SEE (ESFp)": ["Se", "Fi", "Te", "Ni", "Ni", "Te", "Si", "Fi"],
+    "ILI (INTp)": ["Ni", "Te", "Fi", "Se", "Se", "Fi", "Ne", "Te"],
+    "LIE (ENTj)": ["Te", "Ni", "Se", "Fi", "Fi", "Se", "Ti", "Ni"],
+    "ESI (ISFj)": ["Fi", "Se", "Ni", "Te", "Te", "Ni", "Fe", "Se"],
+    "LSE (ESTj)": ["Te", "Si", "Ne", "Fi", "Fi", "Ne", "Ti", "Si"],
+    "EII (INFj)": ["Fi", "Ne", "Si", "Te", "Te", "Si", "Fe", "Ne"],
+    "IEE (ENFp)": ["Ne", "Fi", "Te", "Si", "Si", "Te", "Ni", "Fi"],
+    "SLI (ISTp)": ["Si", "Te", "Fi", "Ne", "Ne", "Fi", "Se", "Te"],
 }
+
+# 診断ロジック用に「価値機能(P1,P2,P5,P6)」だけを抽出した辞書を作る
+socionics_structure = {k: {"P1": v[0], "P2": v[1], "P5": v[4], "P6": v[5]} for k, v in model_a_data.items()}
 
 soci_to_mbti = {k: v for k, v in zip(socionics_structure.keys(), 
     ["ENTP", "ISFJ", "ESFJ", "INTP", "ENFJ", "ISTP", "ESTP", "INFJ", "ESFP", "INTJ", "ENTJ", "ISFP", "ESTJ", "INFP", "ENFP", "ISTJ"])}
@@ -164,16 +169,15 @@ for q in questions:
 if st.button("診断結果を算出", type="primary", use_container_width=True):
     res = calculate_diagnosis(user_answers)
     st.success("分析が完了しました。")
-    
     st.header(f"結果: {res['socionics']}")
 
-# --- モデルAの表示 ---
+    # --- モデルAの表示ブロック ---
     st.divider()
     st.subheader("あなたのモデルA構造")
     
+    # ここで先ほど定義した model_a_data を呼び出します
     funcs = model_a_data[res['socionics']]
     
-    # 2列4行のグリッドでモデルAを表示
     col_a, col_b = st.columns(2)
     with col_a:
         st.info(f"**P1 (主導): {funcs[0]}**")
@@ -187,7 +191,8 @@ if st.button("診断結果を算出", type="primary", use_container_width=True):
         st.error(f"**P8 (証明): {funcs[7]}**")
 
     st.caption("🟦 Ego (P1,P2) / 🟨 Super-Ego (P3,P4) / 🟩 Super-ID (P5,P6) / 🟥 Id (P7,P8)")
-    
+
+    # 最後にランキングとグラフを表示
     col1, col2 = st.columns(2)
     with col1:
         st.write("### 🥇 適合ランキング")
